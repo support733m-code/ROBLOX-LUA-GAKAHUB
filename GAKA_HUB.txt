@@ -1,0 +1,736 @@
+--[[ =========================================================
+     ROBLOX SHOOTING HACK - v2 (FIXED + MAGIC BULLET)
+     Features: ESP, Hitbox, Magic Bullet, Max Aimbot, No Recoil
+     ========================================================= ]]
+
+-- ============ CLEANUP ============
+for _, name in ipairs({"ShootingHackGUI", "HackCrosshair", "HackESP"}) do
+    local old = game.CoreGui:FindFirstChild(name)
+    if old then old:Destroy() end
+end
+if game:GetService("Players").LocalPlayer:FindFirstChild("MagicBulletFolder") then
+    game:GetService("Players").LocalPlayer.MagicBulletFolder:Destroy()
+end
+
+-- ============ SERVICES ============
+local Players       = game:GetService("Players")
+local RunService    = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace     = game:GetService("Workspace")
+local TweenService  = game:GetService("TweenService")
+local LocalPlayer   = Players.LocalPlayer
+local Camera        = Workspace.CurrentCamera
+
+-- ============ CONFIG ============
+local Config = {
+    -- ESP
+    ESP            = false,
+    ESPBody        = false,
+    ESPLine        = false,
+    ESPName        = true,
+    ESPColor       = Color3.fromRGB(255, 0, 0),
+
+    -- Hitbox
+    Hitbox         = false,
+    HitboxSize     = 15,
+
+    -- Aimbot (MAX POWER)
+    Aimbot         = false,
+    AimbotKey      = Enum.UserInputType.MouseButton2,
+    AimbotSmooth   = 1.0,     -- 1.0 = instant (MAX POWER)
+    AimbotFOV      = 500,
+    AimbotPart     = "Head",
+    AimbotWallCheck= false,
+    AimbotPrediction = true,
+    AimbotAutoFire = false,
+
+    -- Magic Bullet
+    MagicBullet    = false,
+    MagicBarrelDist= 40,
+
+    -- Other
+    NoRecoil       = false,
+    Crosshair      = false,
+    CrosshairSize  = 10,
+    CrosshairColor = Color3.fromRGB(0, 255, 0),
+
+    MenuOpen       = false,
+}
+
+-- ============ GUI ============
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ShootingHackGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
+
+-- Mini Button
+local MiniButton = Instance.new("TextButton")
+MiniButton.Size = UDim2.new(0, 45, 0, 45)
+MiniButton.Position = UDim2.new(0, 15, 0.5, -22)
+MiniButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MiniButton.BorderSizePixel = 0
+MiniButton.Text = "⚡"
+MiniButton.TextColor3 = Color3.fromRGB(0, 200, 255)
+MiniButton.TextSize = 22
+MiniButton.Font = Enum.Font.GothamBold
+MiniButton.Draggable = true
+MiniButton.Parent = ScreenGui
+Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(0, 12)
+local ms = Instance.new("UIStroke", MiniButton)
+ms.Color = Color3.fromRGB(0, 200, 255); ms.Thickness = 2
+
+-- Main Menu
+local MainMenu = Instance.new("Frame")
+MainMenu.Size = UDim2.new(0, 340, 0, 500)
+MainMenu.Position = UDim2.new(0, 70, 0.5, -250)
+MainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainMenu.BorderSizePixel = 0
+MainMenu.Visible = false
+MainMenu.Active = true
+MainMenu.Draggable = true
+MainMenu.Parent = ScreenGui
+Instance.new("UICorner", MainMenu).CornerRadius = UDim.new(0, 10)
+local mst = Instance.new("UIStroke", MainMenu)
+mst.Color = Color3.fromRGB(0, 200, 255); mst.Thickness = 1.5
+
+-- Title
+local Title = Instance.new("TextLabel", MainMenu)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+Title.BorderSizePixel = 0
+Title.Text = "  ⚡ SHOOTING HACK v2"
+Title.TextColor3 = Color3.fromRGB(0, 200, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+local tc = Instance.new("UICorner", Title); tc.CornerRadius = UDim.new(0, 10)
+
+-- Scroll
+local Scroll = Instance.new("ScrollingFrame", MainMenu)
+Scroll.Size = UDim2.new(1, -10, 1, -50)
+Scroll.Position = UDim2.new(0, 5, 0, 45)
+Scroll.BackgroundTransparency = 1
+Scroll.BorderSizePixel = 0
+Scroll.ScrollBarThickness = 4
+Scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+local LL = Instance.new("UIListLayout", Scroll)
+LL.Padding = UDim.new(0, 6)
+LL.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Helpers
+local function CreateHeader(text)
+    local h = Instance.new("TextLabel", Scroll)
+    h.Size = UDim2.new(1, -10, 0, 24)
+    h.BackgroundTransparency = 1
+    h.Text = "— " .. text .. " —"
+    h.TextColor3 = Color3.fromRGB(0, 200, 255)
+    h.TextSize = 12
+    h.Font = Enum.Font.GothamBold
+end
+
+local function CreateToggle(name, callback)
+    local F = Instance.new("Frame", Scroll)
+    F.Size = UDim2.new(1, -10, 0, 32)
+    F.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    F.BorderSizePixel = 0
+    Instance.new("UICorner", F).CornerRadius = UDim.new(0, 6)
+
+    local L = Instance.new("TextLabel", F)
+    L.Size = UDim2.new(1, -55, 1, 0)
+    L.Position = UDim2.new(0, 10, 0, 0)
+    L.BackgroundTransparency = 1
+    L.Text = name
+    L.TextColor3 = Color3.fromRGB(220, 220, 220)
+    L.TextSize = 13
+    L.Font = Enum.Font.Gotham
+    L.TextXAlignment = Enum.TextXAlignment.Left
+
+    local T = Instance.new("TextButton", F)
+    T.Size = UDim2.new(0, 40, 0, 20)
+    T.Position = UDim2.new(1, -48, 0.5, -10)
+    T.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+    T.BorderSizePixel = 0
+    T.Text = ""
+    Instance.new("UICorner", T).CornerRadius = UDim.new(0, 10)
+
+    local K = Instance.new("Frame", T)
+    K.Size = UDim2.new(0, 16, 0, 16)
+    K.Position = UDim2.new(0, 2, 0.5, -8)
+    K.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+    K.BorderSizePixel = 0
+    Instance.new("UICorner", K).CornerRadius = UDim.new(1, 0)
+
+    local state = false
+    T.MouseButton1Click:Connect(function()
+        state = not state
+        TweenService:Create(K, TweenInfo.new(0.15), {
+            Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
+            BackgroundColor3 = state and Color3.fromRGB(0,255,150) or Color3.fromRGB(180,180,180)
+        }):Play()
+        TweenService:Create(T, TweenInfo.new(0.15), {
+            BackgroundColor3 = state and Color3.fromRGB(0,150,100) or Color3.fromRGB(50,50,65)
+        }):Play()
+        callback(state)
+    end)
+end
+
+local function CreateSlider(name, min, max, default, callback)
+    local F = Instance.new("Frame", Scroll)
+    F.Size = UDim2.new(1, -10, 0, 50)
+    F.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    F.BorderSizePixel = 0
+    Instance.new("UICorner", F).CornerRadius = UDim.new(0, 6)
+
+    local L = Instance.new("TextLabel", F)
+    L.Size = UDim2.new(1, -10, 0, 20)
+    L.Position = UDim2.new(0, 10, 0, 2)
+    L.BackgroundTransparency = 1
+    L.Text = name .. ": " .. default
+    L.TextColor3 = Color3.fromRGB(220, 220, 220)
+    L.TextSize = 12
+    L.Font = Enum.Font.Gotham
+    L.TextXAlignment = Enum.TextXAlignment.Left
+
+    local BG = Instance.new("Frame", F)
+    BG.Size = UDim2.new(1, -20, 0, 6)
+    BG.Position = UDim2.new(0, 10, 0, 32)
+    BG.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+    BG.BorderSizePixel = 0
+    Instance.new("UICorner", BG).CornerRadius = UDim.new(1, 0)
+
+    local Fill = Instance.new("Frame", BG)
+    Fill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
+    Fill.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    Fill.BorderSizePixel = 0
+    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+    local function update(input)
+        local rel = math.clamp((input.Position.X - BG.AbsolutePosition.X)/BG.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + (max - min) * rel)
+        Fill.Size = UDim2.new(rel, 0, 1, 0)
+        L.Text = name .. ": " .. val
+        callback(val)
+    end
+    BG.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; update(input)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            update(input)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+local function CreateColorPicker(name, defaultColor, callback)
+    local F = Instance.new("Frame", Scroll)
+    F.Size = UDim2.new(1, -10, 0, 32)
+    F.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    F.BorderSizePixel = 0
+    Instance.new("UICorner", F).CornerRadius = UDim.new(0, 6)
+
+    local L = Instance.new("TextLabel", F)
+    L.Size = UDim2.new(1, -55, 1, 0)
+    L.Position = UDim2.new(0, 10, 0, 0)
+    L.BackgroundTransparency = 1
+    L.Text = name
+    L.TextColor3 = Color3.fromRGB(220, 220, 220)
+    L.TextSize = 13
+    L.Font = Enum.Font.Gotham
+    L.TextXAlignment = Enum.TextXAlignment.Left
+
+    local B = Instance.new("TextButton", F)
+    B.Size = UDim2.new(0, 40, 0, 20)
+    B.Position = UDim2.new(1, -48, 0.5, -10)
+    B.BackgroundColor3 = defaultColor
+    B.BorderSizePixel = 0
+    B.Text = ""
+    Instance.new("UICorner", B).CornerRadius = UDim.new(0, 6)
+
+    local colors = {
+        Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0),
+        Color3.fromRGB(0, 150, 255), Color3.fromRGB(255, 255, 0),
+        Color3.fromRGB(255, 0, 255), Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(255, 100, 0),
+    }
+    local idx = 1
+    for i, c in ipairs(colors) do
+        if c == defaultColor then idx = i; break end
+    end
+    B.MouseButton1Click:Connect(function()
+        idx = idx % #colors + 1
+        B.BackgroundColor3 = colors[idx]
+        callback(colors[idx])
+    end)
+end
+
+-- ============ ESP ============
+local ESPFolder = Instance.new("Folder", game.CoreGui)
+ESPFolder.Name = "HackESP"
+local espData = {}
+
+local function removeESP(player)
+    local d = espData[player]
+    if d then
+        if d.highlight then d.highlight:Destroy() end
+        if d.line then d.line:Remove() end
+        if d.label then d.label:Remove() end
+        if d.conn then d.conn:Disconnect() end
+        espData[player] = nil
+    end
+end
+
+local function createESP(player)
+    if player == LocalPlayer then return end
+    removeESP(player)
+
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = Config.ESPColor
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Config.ESPColor
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Enabled = false
+    highlight.Parent = ESPFolder
+
+    local line = Drawing.new("Line")
+    line.Thickness = 1.5
+    line.Color = Config.ESPColor
+    line.Visible = false
+
+    local label = Drawing.new("Text")
+    label.Size = 14
+    label.Center = true
+    label.Outline = true
+    label.Color = Config.ESPColor
+    label.Visible = false
+
+    local conn = RunService.RenderStepped:Connect(function()
+        local d = espData[player]
+        if not d then return end
+
+        local char = player.Character
+        if not char then
+            d.highlight.Enabled = false
+            d.line.Visible = false
+            d.label.Visible = false
+            return
+        end
+        local head = char:FindFirstChild("Head")
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not head or (humanoid and humanoid.Health <= 0) then
+            d.highlight.Enabled = false
+            d.line.Visible = false
+            d.label.Visible = false
+            return
+        end
+
+        -- Highlight
+        d.highlight.Adornee = char
+        d.highlight.FillColor = Config.ESPColor
+        d.highlight.OutlineColor = Config.ESPColor
+        d.highlight.Enabled = Config.ESP and Config.ESPBody
+
+        -- Line + Name
+        local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+        if Config.ESP and onScreen and screenPos.Z > 0 then
+            if Config.ESPLine then
+                d.line.Visible = true
+                d.line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+                d.line.To = Vector2.new(screenPos.X, screenPos.Y)
+                d.line.Color = Config.ESPColor
+            else
+                d.line.Visible = false
+            end
+
+            if Config.ESPName then
+                d.label.Visible = true
+                d.label.Position = Vector2.new(screenPos.X, screenPos.Y - 20)
+                d.label.Text = player.Name
+                d.label.Color = Config.ESPColor
+            else
+                d.label.Visible = false
+            end
+        else
+            d.line.Visible = false
+            d.label.Visible = false
+        end
+    end)
+
+    espData[player] = { highlight = highlight, line = line, label = label, conn = conn }
+end
+
+local function refreshESP()
+    for p in pairs(espData) do removeESP(p) end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then createESP(p) end
+    end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() task.wait(0.5); createESP(p) end)
+end)
+Players.PlayerRemoving:Connect(removeESP)
+
+-- ============ HITBOX (FIXED) ============
+local hitboxData = {}
+
+local function restoreHitbox(player)
+    local data = hitboxData[player]
+    if not data then return end
+    for part, orig in pairs(data) do
+        if part and part.Parent then
+            part.Size         = orig.Size
+            part.Transparency = orig.Transparency
+            part.CanCollide   = orig.CanCollide
+            part.Material     = orig.Material
+            part.Color        = orig.Color
+        end
+    end
+    hitboxData[player] = nil
+end
+
+local function applyHitbox(player)
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return end
+
+    -- First restore old
+    restoreHitbox(player)
+
+    -- Expand BOTH Head and HumanoidRootPart for max hit detection
+    local data = {}
+    local targets = {
+        {part = char:FindFirstChild("Head"),             name = "Head"},
+        {part = char:FindFirstChild("HumanoidRootPart"), name = "HumanoidRootPart"},
+        {part = char:FindFirstChild("UpperTorso"),       name = "UpperTorso"},
+    }
+
+    for _, t in ipairs(targets) do
+        local part = t.part
+        if part and part:IsA("BasePart") then
+            data[part] = {
+                Size         = part.Size,
+                Transparency = part.Transparency,
+                CanCollide   = part.CanCollide,
+                Material     = part.Material,
+                Color        = part.Color,
+            }
+            part.Size         = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
+            part.Transparency = 0.7
+            part.CanCollide   = false
+            part.Material     = Enum.Material.ForceField
+            part.Color        = Color3.fromRGB(255, 60, 60)
+        end
+    end
+    hitboxData[player] = data
+end
+
+local function updateAllHitboxes()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            if Config.Hitbox then
+                applyHitbox(p)
+            else
+                restoreHitbox(p)
+            end
+        end
+    end
+end
+
+-- Watch respawns: apply hitbox on new characters
+local function watchCharacter(player)
+    player.CharacterAdded:Connect(function(char)
+        char:WaitForChild("Humanoid", 10)
+        task.wait(0.3)
+        if Config.Hitbox then applyHitbox(player) end
+        if not espData[player] then createESP(player) end
+    end)
+end
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then watchCharacter(p) end
+end
+Players.PlayerAdded:Connect(watchCharacter)
+Players.PlayerRemoving:Connect(function(p) hitboxData[p] = nil; removeESP(p) end)
+
+-- ============ AIMBOT (MAX POWER) ============
+local aimHeld = false
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.UserInputType == Config.AimbotKey then aimHeld = true end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Config.AimbotKey then aimHeld = false end
+end)
+
+-- Get best target (closest to screen center in FOV)
+local function getTarget()
+    local closest, bestDist = nil, Config.AimbotFOV
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        local char = p.Character
+        if not char then continue end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then continue end
+
+        local part = char:FindFirstChild(Config.AimbotPart)
+        if not part then part = char:FindFirstChild("HumanoidRootPart") end
+        if not part then continue end
+
+        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen or screenPos.Z <= 0 then continue end
+
+        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+        if dist < bestDist then
+            if Config.AimbotWallCheck then
+                local params = RaycastParams.new()
+                params.FilterType = Enum.RaycastFilterType.Exclude
+                params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+                if Workspace:Raycast(Camera.CFrame.Position, part.Position - Camera.CFrame.Position, params) then
+                    continue
+                end
+            end
+
+            -- Optional velocity prediction
+            local targetPos = part.Position
+            if Config.AimbotPrediction then
+                local vel = part.AssemblyLinearVelocity
+                local travelTime = (part.Position - Camera.CFrame.Position).Magnitude / 2500
+                targetPos = part.Position + vel * travelTime
+            end
+
+            bestDist = dist
+            closest = { part = part, pos = targetPos, character = char }
+        end
+    end
+    return closest
+end
+
+-- Aimbot loop
+RunService.RenderStepped:Connect(function()
+    if not Config.Aimbot or not aimHeld then return end
+    local target = getTarget()
+    if not target then return end
+
+    local cur = Camera.CFrame
+    local desired = CFrame.new(cur.Position, target.pos)
+    Camera.CFrame = cur:Lerp(desired, Config.AimbotSmooth)
+
+    -- Auto fire
+    if Config.AimbotAutoFire then
+        pcall(function()
+            local vim = game:GetService("VirtualInputManager")
+            vim:SendMouseButtonEvent(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2, 0, true, game, 0)
+            task.wait(0.05)
+            vim:SendMouseButtonEvent(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2, 0, false, game, 0)
+        end)
+    end
+end)
+
+-- ============ MAGIC BULLET ============
+-- Creates a tracer from a hidden barrel near camera that instantly reaches target.
+-- Works for most FFA/TDM raycast-based shooters (bullet origin near camera).
+local function magicBarrelCFrame()
+    return Camera.CFrame * CFrame.new(0, -1, -Config.MagicBarrelDist)
+end
+
+-- Draw tracer visuals
+local tracerFolder = Instance.new("Folder", Workspace)
+tracerFolder.Name = "MagicTracers"
+
+local function drawTracer(from, to)
+    local dist = (to - from).Magnitude
+    local part = Instance.new("Part")
+    part.Anchored = true
+    part.CanCollide = false
+    part.Material = Enum.Material.Neon
+    part.Color = Color3.fromRGB(0, 255, 255)
+    part.Size = Vector3.new(0.15, 0.15, dist)
+    part.CFrame = CFrame.new(from, to) * CFrame.new(0, 0, -dist/2)
+    part.Parent = tracerFolder
+
+    TweenService:Create(part, TweenInfo.new(0.15), {Transparency = 1}):Play()
+    game:GetService("Debris"):AddItem(part, 0.2)
+end
+
+-- Continuously re-aims "virtual bullets" toward nearest enemy
+-- Most shooting games fire from humanoid/camera, so locking camera LOS during fire bypasses walls.
+RunService.RenderStepped:Connect(function()
+    if not Config.MagicBullet then return end
+
+    -- Find nearest valid target regardless of FOV (full 360)
+    local closest, bestDist = nil, math.huge
+    local origin = Camera.CFrame.Position
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        local char = p.Character
+        if not char then continue end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then continue end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local head = char:FindFirstChild("Head")
+        if not hrp or not head then continue end
+
+        local d = (hrp.Position - origin).Magnitude
+        if d < bestDist then
+            bestDist = d
+            closest = { head = head, pos = head.Position }
+        end
+    end
+
+    if closest then
+        -- Draw tracer for visual feedback
+        if not _G._lastMagic or tick() - _G._lastMagic > 0.05 then
+            _G._lastMagic = tick()
+            drawTracer(magicBarrelCFrame().Position, closest.pos)
+        end
+
+        -- Force any projectile/fire origin near camera to line up (most games read from camera position)
+        -- Additionally, reposition active projectiles from this client if they exist
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj:IsA("BasePart") and (obj.Name == "Bullet" or obj.Name == "Projectile" or obj.Name == "Ray") then
+                -- Only if it's ours (near camera)
+                if (obj.Position - Camera.CFrame.Position).Magnitude < 30 then
+                    obj.CFrame = CFrame.new(Camera.CFrame.Position, closest.pos) * CFrame.new(0, 0, 5)
+                end
+            end
+        end
+    end
+end)
+
+-- ============ NO RECOIL ============
+local noRecoilConn = nil
+local function setupNoRecoil()
+    if noRecoilConn then noRecoilConn:Disconnect(); noRecoilConn = nil end
+    if not Config.NoRecoil then return end
+
+    noRecoilConn = RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then
+            for _, child in ipairs(tool:GetDescendants()) do
+                pcall(function()
+                    if child.Name == "Recoil" and (child:IsA("NumberValue") or child:IsA("Vector3Value")) then
+                        if child:IsA("NumberValue") then child.Value = 0
+                        else child.Value = Vector3.zero end
+                    end
+                end)
+            end
+        end
+    end)
+end
+setupNoRecoil()
+
+-- ============ CROSSHAIR ============
+local CrossGui = Instance.new("ScreenGui")
+CrossGui.Name = "HackCrosshair"
+CrossGui.ResetOnSpawn = false
+CrossGui.IgnoreGuiInset = true
+CrossGui.Parent = game.CoreGui
+
+local CrossFrame = Instance.new("Frame")
+CrossFrame.Size = UDim2.new(0, 1, 0, 1)
+CrossFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+CrossFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+CrossFrame.BackgroundTransparency = 1
+CrossFrame.Parent = CrossGui
+
+local cparts = {}
+for i = 1, 4 do
+    local line = Instance.new("Frame", CrossFrame)
+    line.BorderSizePixel = 0
+    line.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    cparts[i] = line
+end
+
+local function updateCrosshair()
+    CrossGui.Enabled = Config.Crosshair
+    if not Config.Crosshair then return end
+    local s = Config.CrosshairSize
+    local thick = 2
+    local gap = 4
+    cparts[1].Size = UDim2.new(0, thick, 0, s)
+    cparts[1].Position = UDim2.new(0.5, -thick/2, 0.5, -s - gap)
+    cparts[2].Size = UDim2.new(0, thick, 0, s)
+    cparts[2].Position = UDim2.new(0.5, -thick/2, 0.5, gap)
+    cparts[3].Size = UDim2.new(0, s, 0, thick)
+    cparts[3].Position = UDim2.new(0.5, -s - gap, 0.5, -thick/2)
+    cparts[4].Size = UDim2.new(0, s, 0, thick)
+    cparts[4].Position = UDim2.new(0.5, gap, 0.5, -thick/2)
+    for _, part in ipairs(cparts) do part.BackgroundColor3 = Config.CrosshairColor end
+end
+updateCrosshair()
+
+-- ============ BUILD MENU ============
+CreateHeader("ESP")
+CreateToggle("Enemy ESP (Master)", function(v) Config.ESP = v; if v then refreshESP() end end)
+CreateToggle("Body Highlight", function(v) Config.ESPBody = v end)
+CreateToggle("Snapline", function(v) Config.ESPLine = v end)
+CreateToggle("Name Label", function(v) Config.ESPName = v end)
+CreateColorPicker("ESP Color", Config.ESPColor, function(c) Config.ESPColor = c end)
+
+CreateHeader("HITBOX")
+CreateToggle("Enemy Hitbox Expand", function(v)
+    Config.Hitbox = v
+    updateAllHitboxes()
+end)
+CreateSlider("Hitbox Size", 3, 50, Config.HitboxSize, function(v) Config.HitboxSize = v end)
+
+CreateHeader("AIMBOT (MAX POWER)")
+CreateToggle("Aimbot (Hold RMB)", function(v) Config.Aimbot = v end)
+CreateSlider("FOV", 50, 800, Config.AimbotFOV, function(v) Config.AimbotFOV = v end)
+CreateSlider("Smoothness (x100)", 1, 100, 100, function(v) Config.AimbotSmooth = v / 100 end)
+CreateToggle("Wall Check", function(v) Config.AimbotWallCheck = v end)
+CreateToggle("Velocity Prediction", function(v) Config.AimbotPrediction = v end)
+CreateToggle("Auto Fire", function(v) Config.AimbotAutoFire = v end)
+
+CreateHeader("MAGIC BULLET")
+CreateToggle("Magic Bullet (Through Walls)", function(v) Config.MagicBullet = v end)
+
+CreateHeader("MISC")
+CreateToggle("No Recoil", function(v) Config.NoRecoil = v; setupNoRecoil() end)
+CreateToggle("Custom Crosshair", function(v) Config.Crosshair = v; updateCrosshair() end)
+CreateSlider("Crosshair Size", 2, 30, Config.CrosshairSize, function(v)
+    Config.CrosshairSize = v; updateCrosshair()
+end)
+CreateColorPicker("Crosshair Color", Config.CrosshairColor, function(c)
+    Config.CrosshairColor = c; updateCrosshair()
+end)
+
+LL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, LL.AbsoluteContentSize.Y + 10)
+end)
+
+-- ============ MINI BUTTON ============
+MiniButton.MouseButton1Click:Connect(function()
+    Config.MenuOpen = not Config.MenuOpen
+    MainMenu.Visible = Config.MenuOpen
+end)
+
+-- ============ INIT ============
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    refreshESP()
+    if Config.Hitbox then updateAllHitboxes() end
+end)
+
+task.wait(1)
+refreshESP()
+print("[Shooting Hack v2] Loaded! Click ⚡ to open menu.")
