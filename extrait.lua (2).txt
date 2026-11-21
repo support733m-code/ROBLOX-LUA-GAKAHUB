@@ -1,0 +1,719 @@
+--[[ 
+    Roblox Shooting Game Hack
+    Features: ESP, Aimbot, No Recoil, Custom Crosshair
+    Compatible with FFA/TDM
+]]
+
+-- Cleanup existing GUI
+if game.CoreGui:FindFirstChild("ShootingHackGUI") then
+    game.CoreGui.ShootingHackGUI:Destroy()
+end
+
+-- ============ SERVICES ============
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- ============ STATE ============
+local Config = {
+    ESP = false,
+    ESPBody = false,
+    ESPLine = false,
+    ESPColor = Color3.fromRGB(255, 0, 0),
+    Hitbox = false,
+    Aimbot = false,
+    AimbotKey = Enum.UserInputType.MouseButton2,
+    AimbotSmooth = 0.15,
+    AimbotFOV = 200,
+    AimbotPart = "Head",
+    AimbotWallCheck = false,
+    NoRecoil = false,
+    Crosshair = false,
+    CrosshairSize = 10,
+    CrosshairColor = Color3.fromRGB(0, 255, 0),
+    MenuOpen = false,
+}
+
+-- ============ GUI CREATION ============
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ShootingHackGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
+
+-- Mini toggle button
+local MiniButton = Instance.new("TextButton")
+MiniButton.Name = "MiniButton"
+MiniButton.Size = UDim2.new(0, 45, 0, 45)
+MiniButton.Position = UDim2.new(0, 15, 0.5, -22)
+MiniButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MiniButton.BorderSizePixel = 0
+MiniButton.Text = "⚡"
+MiniButton.TextColor3 = Color3.fromRGB(0, 200, 255)
+MiniButton.TextSize = 22
+MiniButton.Font = Enum.Font.GothamBold
+MiniButton.Draggable = true
+MiniButton.Parent = ScreenGui
+
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 12)
+MiniCorner.Parent = MiniButton
+
+local MiniStroke = Instance.new("UIStroke")
+MiniStroke.Color = Color3.fromRGB(0, 200, 255)
+MiniStroke.Thickness = 2
+MiniStroke.Parent = MiniButton
+
+-- Main Menu
+local MainMenu = Instance.new("Frame")
+MainMenu.Name = "MainMenu"
+MainMenu.Size = UDim2.new(0, 340, 0, 460)
+MainMenu.Position = UDim2.new(0, 70, 0.5, -230)
+MainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainMenu.BorderSizePixel = 0
+MainMenu.Visible = false
+MainMenu.Active = true
+MainMenu.Draggable = true
+MainMenu.Parent = ScreenGui
+
+local MenuCorner = Instance.new("UICorner")
+MenuCorner.CornerRadius = UDim.new(0, 10)
+MenuCorner.Parent = MainMenu
+
+local MenuStroke = Instance.new("UIStroke")
+MenuStroke.Color = Color3.fromRGB(0, 200, 255)
+MenuStroke.Thickness = 1.5
+MenuStroke.Parent = MainMenu
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+Title.BorderSizePixel = 0
+Title.Text = "  ⚡ SHOOTING HACK MENU"
+Title.TextColor3 = Color3.fromRGB(0, 200, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = MainMenu
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = Title
+
+-- Scrolling frame for features
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -10, 1, -50)
+Scroll.Position = UDim2.new(0, 5, 0, 45)
+Scroll.BackgroundTransparency = 1
+Scroll.BorderSizePixel = 0
+Scroll.ScrollBarThickness = 4
+Scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+Scroll.Parent = MainMenu
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 6)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.Parent = Scroll
+
+-- Helper: Create a toggle row
+local function CreateToggle(name, callback)
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, -10, 0, 32)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = Scroll
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Frame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -55, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    Label.TextSize = 13
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+    
+    local Toggle = Instance.new("TextButton")
+    Toggle.Size = UDim2.new(0, 40, 0, 20)
+    Toggle.Position = UDim2.new(1, -48, 0.5, -10)
+    Toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+    Toggle.BorderSizePixel = 0
+    Toggle.Text = ""
+    Toggle.Parent = Frame
+    
+    local TCorner = Instance.new("UICorner")
+    TCorner.CornerRadius = UDim.new(0, 10)
+    TCorner.Parent = Toggle
+    
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.new(0, 16, 0, 16)
+    Knob.Position = UDim2.new(0, 2, 0.5, -8)
+    Knob.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+    Knob.BorderSizePixel = 0
+    Knob.Parent = Toggle
+    
+    local KCorner = Instance.new("UICorner")
+    KCorner.CornerRadius = UDim.new(1, 0)
+    KCorner.Parent = Knob
+    
+    local state = false
+    Toggle.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            TweenService = game:GetService("TweenService")
+            TweenService:Create(Knob, TweenInfo.new(0.15), {Position = UDim2.new(1, -18, 0.5, -8), BackgroundColor3 = Color3.fromRGB(0, 255, 150)}):Play()
+            TweenService:Create(Toggle, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(0, 150, 100)}):Play()
+        else
+            TweenService = game:GetService("TweenService")
+            TweenService:Create(Knob, TweenInfo.new(0.15), {Position = UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = Color3.fromRGB(180, 180, 180)}):Play()
+            TweenService:Create(Toggle, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 50, 65)}):Play()
+        end
+        callback(state)
+    end)
+    
+    return Frame
+end
+
+-- Helper: Create a header
+local function CreateHeader(text)
+    local Header = Instance.new("TextLabel")
+    Header.Size = UDim2.new(1, -10, 0, 24)
+    Header.BackgroundTransparency = 1
+    Header.Text = "— " .. text .. " —"
+    Header.TextColor3 = Color3.fromRGB(0, 200, 255)
+    Header.TextSize = 12
+    Header.Font = Enum.Font.GothamBold
+    Header.Parent = Scroll
+end
+
+-- Helper: Create a slider (returns a function to get value)
+local function CreateSlider(name, min, max, default, callback)
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, -10, 0, 50)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = Scroll
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Frame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -10, 0, 20)
+    Label.Position = UDim2.new(0, 10, 0, 2)
+    Label.BackgroundTransparency = 1
+    Label.Text = name .. ": " .. default
+    Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    Label.TextSize = 12
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+    
+    local BarBG = Instance.new("Frame")
+    BarBG.Size = UDim2.new(1, -20, 0, 6)
+    BarBG.Position = UDim2.new(0, 10, 0, 32)
+    BarBG.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+    BarBG.BorderSizePixel = 0
+    BarBG.Parent = Frame
+    
+    local BarCorner = Instance.new("UICorner")
+    BarCorner.CornerRadius = UDim.new(1, 0)
+    BarCorner.Parent = BarBG
+    
+    local Fill = Instance.new("Frame")
+    Fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    Fill.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    Fill.BorderSizePixel = 0
+    Fill.Parent = BarBG
+    
+    local FillCorner = Instance.new("UICorner")
+    FillCorner.CornerRadius = UDim.new(1, 0)
+    FillCorner.Parent = Fill
+    
+    local dragging = false
+    local function update(input)
+        local rel = math.clamp((input.Position.X - BarBG.AbsolutePosition.X) / BarBG.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + (max - min) * rel)
+        Fill.Size = UDim2.new(rel, 0, 1, 0)
+        Label.Text = name .. ": " .. val
+        callback(val)
+    end
+    
+    BarBG.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            update(input)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            update(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- Helper: Color picker
+local function CreateColorPicker(name, defaultColor, callback)
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, -10, 0, 32)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = Scroll
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Frame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -55, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    Label.TextSize = 13
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+    
+    local ColorBtn = Instance.new("TextButton")
+    ColorBtn.Size = UDim2.new(0, 40, 0, 20)
+    ColorBtn.Position = UDim2.new(1, -48, 0.5, -10)
+    ColorBtn.BackgroundColor3 = defaultColor
+    ColorBtn.BorderSizePixel = 0
+    ColorBtn.Text = ""
+    ColorBtn.Parent = Frame
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.Parent = ColorBtn
+    
+    local colors = {
+        Color3.fromRGB(255, 0, 0),
+        Color3.fromRGB(0, 255, 0),
+        Color3.fromRGB(0, 150, 255),
+        Color3.fromRGB(255, 255, 0),
+        Color3.fromRGB(255, 0, 255),
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(255, 100, 0),
+    }
+    local idx = 1
+    ColorBtn.MouseButton1Click:Connect(function()
+        idx = idx + 1
+        if idx > #colors then idx = 1 end
+        ColorBtn.BackgroundColor3 = colors[idx]
+        callback(colors[idx])
+    end)
+end
+
+-- ============ ESP SYSTEM ============
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "HackESP"
+ESPFolder.Parent = game.CoreGui
+
+local espConnections = {}
+local espObjects = {}
+
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+    
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local head = char:FindFirstChild("Head")
+    if not hrp or not head then return end
+    
+    -- Body highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillColor = Config.ESPColor
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Config.ESPColor
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Adornee = char
+    highlight.Enabled = Config.ESP and Config.ESPBody
+    highlight.Parent = ESPFolder
+    
+    -- Line (Snapline) using Drawing API
+    local line = Drawing.new("Line")
+    line.Thickness = 1.5
+    line.Color = Config.ESPColor
+    line.Visible = false
+    
+    -- Name label
+    local nameLabel = Drawing.new("Text")
+    nameLabel.Size = 14
+    nameLabel.Center = true
+    nameLabel.Outline = true
+    nameLabel.Color = Config.ESPColor
+    nameLabel.Visible = false
+    nameLabel.Text = player.Name
+    
+    espObjects[player] = {
+        highlight = highlight,
+        line = line,
+        nameLabel = nameLabel,
+        connection = nil,
+    }
+    
+    local conn = RunService.RenderStepped:Connect(function()
+        local obj = espObjects[player]
+        if not obj then return end
+        
+        local character = player.Character
+        if not character then
+            obj.line.Visible = false
+            obj.nameLabel.Visible = false
+            if obj.highlight then obj.highlight.Enabled = false end
+            return
+        end
+        
+        local h = character:FindFirstChild("Head")
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        if not h or not root or (humanoid and humanoid.Health <= 0) then
+            obj.line.Visible = false
+            obj.nameLabel.Visible = false
+            if obj.highlight then obj.highlight.Enabled = false end
+            return
+        end
+        
+        if obj.highlight then
+            obj.highlight.Enabled = Config.ESP and Config.ESPBody
+            obj.highlight.FillColor = Config.ESPColor
+            obj.highlight.OutlineColor = Config.ESPColor
+        end
+        
+        local screenPos, onScreen = Camera:WorldToViewportPoint(h.Position)
+        
+        if Config.ESP and Config.ESPLine and onScreen and screenPos.Z > 0 then
+            obj.line.Visible = true
+            obj.line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            obj.line.To = Vector2.new(screenPos.X, screenPos.Y)
+            obj.line.Color = Config.ESPColor
+        else
+            obj.line.Visible = false
+        end
+        
+        if Config.ESP and onScreen and screenPos.Z > 0 then
+            obj.nameLabel.Visible = true
+            obj.nameLabel.Position = Vector2.new(screenPos.X, screenPos.Y - 20)
+            obj.nameLabel.Color = Config.ESPColor
+            obj.nameLabel.Text = player.Name
+        else
+            obj.nameLabel.Visible = false
+        end
+    end)
+    
+    espObjects[player].connection = conn
+end
+
+local function RemoveESP(player)
+    local obj = espObjects[player]
+    if obj then
+        if obj.highlight then obj.highlight:Destroy() end
+        if obj.line then obj.line:Remove() end
+        if obj.nameLabel then obj.nameLabel:Remove() end
+        if obj.connection then obj.connection:Disconnect() end
+        espObjects[player] = nil
+    end
+end
+
+local function RefreshESP()
+    for player, _ in pairs(espObjects) do
+        RemoveESP(player)
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreateESP(player)
+        end
+    end
+end
+
+-- Watch player joins/leaves
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if not espObjects[p] then
+            CreateESP(p)
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    RemoveESP(p)
+end)
+
+-- ============ AIMBOT SYSTEM ============
+local aimTarget = nil
+local aimHeld = false
+
+local function GetClosestTarget()
+    local closest = nil
+    local shortest = Config.AimbotFOV
+    local camPos = Camera.CFrame.Position
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        local char = player.Character
+        if not char then continue end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then continue end
+        
+        local part = char:FindFirstChild(Config.AimbotPart)
+        if not part then continue end
+        
+        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen or screenPos.Z <= 0 then continue end
+        
+        local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+        
+        if dist < shortest then
+            -- Wall check
+            if Config.AimbotWallCheck then
+                local params = RaycastParams.new()
+                params.FilterType = Enum.RaycastFilterType.Exclude
+                params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+                local ray = Workspace:Raycast(camPos, part.Position - camPos, params)
+                if ray then continue end
+            end
+            shortest = dist
+            closest = part
+        end
+    end
+    
+    return closest
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.UserInputType == Config.AimbotKey then
+        aimHeld = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Config.AimbotKey then
+        aimHeld = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not Config.Aimbot or not aimHeld then return end
+    local target = GetClosestTarget()
+    if not target then return end
+    
+    local currentCF = Camera.CFrame
+    local targetCF = CFrame.new(currentCF.Position, target.Position)
+    Camera.CFrame = currentCF:Lerp(targetCF, Config.AimbotSmooth)
+end)
+
+-- ============ HITBOX SYSTEM ============
+local function ApplyHitbox(player)
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    if Config.Hitbox then
+        root.Size = Vector3.new(15, 15, 15)
+        root.Transparency = 0.7
+        root.CanCollide = false
+        root.Material = Enum.Material.ForceField
+        root.Color = Color3.fromRGB(255, 50, 50)
+        root.Name = "HumanoidRootPart"
+    else
+        root.Size = Vector3.new(2, 2, 1)
+        root.Transparency = 1
+        root.CanCollide = true
+        root.Material = Enum.Material.Plastic
+        root.Color = Color3.fromRGB(255, 255, 0)
+    end
+end
+
+local function UpdateAllHitboxes()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            ApplyHitbox(player)
+        end
+    end
+end
+
+-- ============ NO RECOIL ============
+local noRecoilConn = nil
+local function SetupNoRecoil()
+    if noRecoilConn then noRecoilConn:Disconnect() end
+    if not Config.NoRecoil then return end
+    
+    noRecoilConn = RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local cam = Workspace.CurrentCamera
+        -- Reset camera rotation offsets by keeping CFrame stable near mouse aim
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            -- Try weapon-specific (common patterns)
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                local gun = tool:FindFirstChild("Gun") or tool:FindFirstChild("Handle")
+                if gun and gun:IsA("BasePart") then
+                    -- Some games add recoil via CFrame - we neutralize by keeping camera
+                    pcall(function()
+                        if gun:FindFirstChild("Recoil") then
+                            gun.Recoil.Value = 0
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+SetupNoRecoil()
+
+-- ============ CROSSHAIR ============
+local CrosshairGui = Instance.new("ScreenGui")
+CrosshairGui.Name = "HackCrosshair"
+CrosshairGui.ResetOnSpawn = false
+CrosshairGui.IgnoreGuiInset = true
+CrosshairGui.Parent = game.CoreGui
+
+local CrosshairFrame = Instance.new("Frame")
+CrosshairFrame.Size = UDim2.new(0, 20, 0, 20)
+CrosshairFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+CrosshairFrame.BackgroundTransparency = 1
+CrosshairFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+CrosshairFrame.Parent = CrosshairGui
+
+local crossParts = {}
+for i = 1, 4 do
+    local line = Instance.new("Frame")
+    line.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    line.BorderSizePixel = 0
+    line.BackgroundTransparency = 0
+    line.Parent = CrosshairFrame
+    crossParts[i] = line
+end
+
+local function UpdateCrosshair()
+    CrosshairGui.Enabled = Config.Crosshair
+    if not Config.Crosshair then return end
+    
+    local s = Config.CrosshairSize
+    local thick = 2
+    
+    -- Crosshair layout (Top, Bottom, Left, Right)
+    crossParts[1].Size = UDim2.new(0, thick, 0, s)         -- top
+    crossParts[1].Position = UDim2.new(0.5, -thick/2, 0.5, -s - 4)
+    crossParts[2].Size = UDim2.new(0, thick, 0, s)         -- bottom
+    crossParts[2].Position = UDim2.new(0.5, -thick/2, 0.5, 4)
+    crossParts[3].Size = UDim2.new(0, s, 0, thick)         -- left
+    crossParts[3].Position = UDim2.new(0.5, -s - 4, 0.5, -thick/2)
+    crossParts[4].Size = UDim2.new(0, s, 0, thick)         -- right
+    crossParts[4].Position = UDim2.new(0.5, 4, 0.5, -thick/2)
+    
+    for _, part in ipairs(crossParts) do
+        part.BackgroundColor3 = Config.CrosshairColor
+    end
+end
+
+UpdateCrosshair()
+
+-- ============ BUILD MENU ============
+CreateHeader("ESP")
+CreateToggle("Enemy ESP (Master)", function(v)
+    Config.ESP = v
+    if v then RefreshESP() end
+end)
+CreateToggle("Body Highlight", function(v)
+    Config.ESPBody = v
+    for _, obj in pairs(espObjects) do
+        if obj.highlight then obj.highlight.Enabled = v and Config.ESP end
+    end
+end)
+CreateToggle("Snapline", function(v)
+    Config.ESPLine = v
+end)
+CreateColorPicker("ESP Color", Config.ESPColor, function(c)
+    Config.ESPColor = c
+end)
+
+CreateHeader("Aimbot")
+CreateToggle("Aimbot (Hold RMB)", function(v)
+    Config.Aimbot = v
+end)
+CreateSlider("FOV", 50, 500, Config.AimbotFOV, function(v)
+    Config.AimbotFOV = v
+end)
+CreateSlider("Smoothness", 1, 100, math.floor(Config.AimbotSmooth * 100), function(v)
+    Config.AimbotSmooth = v / 100
+end)
+CreateToggle("Wall Check", function(v)
+    Config.AimbotWallCheck = v
+end)
+
+CreateHeader("Hitbox")
+CreateToggle("Enemy Hitbox Expand", function(v)
+    Config.Hitbox = v
+    UpdateAllHitboxes()
+end)
+
+CreateHeader("Other")
+CreateToggle("No Recoil", function(v)
+    Config.NoRecoil = v
+    SetupNoRecoil()
+end)
+CreateToggle("Custom Crosshair", function(v)
+    Config.Crosshair = v
+    UpdateCrosshair()
+end)
+CreateSlider("Crosshair Size", 2, 30, Config.CrosshairSize, function(v)
+    Config.CrosshairSize = v
+    UpdateCrosshair()
+end)
+CreateColorPicker("Crosshair Color", Config.CrosshairColor, function(c)
+    Config.CrosshairColor = c
+    UpdateCrosshair()
+end)
+
+-- Update canvas size
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- ============ MINI BUTTON TOGGLE ============
+MiniButton.MouseButton1Click:Connect(function()
+    Config.MenuOpen = not Config.MenuOpen
+    MainMenu.Visible = Config.MenuOpen
+end)
+
+-- Character respawn refresh
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    RefreshESP()
+    if Config.Hitbox then UpdateAllHitboxes() end
+end)
+
+-- Initial ESP
+task.wait(1)
+RefreshESP()
+
+print("[Shooting Hack] Loaded successfully! Click ⚡ button to open menu.")
