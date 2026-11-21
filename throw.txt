@@ -1,0 +1,218 @@
+--============================================================
+--  THROW FOOD FOR ANIMALS  |  Auto Thrower + Auto Trainer
+--  Mini button -> Main GUI
+--  Features:
+--    • Auto Teleport to Throw Area
+--    • Auto Perfect Throw (aim + timing + spam)
+--    • Auto Teleport to Training Area
+--    • Auto Training
+--    • Popup Auto-Click (2x) — keeps training after popups
+--============================================================
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+
+-- ================== CONFIG (edit these) ==================
+local CFG = {
+	ThrowAreaName  = "ThrowArea",       -- name of the Throw Area part
+	TrainingName   = "TrainingArea",    -- name of the Training Area part
+	ThrowDistance  = 30,                -- how far to throw (studs)
+	ThrowInterval  = 0.35,              -- seconds between throws
+	PopupClickSpeed= 0.5,               -- 2x speed => click every 0.5s
+	PopupKeywords  = { "Claim", "Collect", "Next", "Continue", "OK", "Got It", "Yes", "Close", "Train" },
+}
+
+-- ================== HELPERS ==================
+local function findPart(name)
+	local found
+	game:DescendAllParts(function(part)
+		if part:IsA("BasePart") and part.Name:lower() == name:lower() then
+			found = part
+		end
+	end)
+	return found
+end
+
+local function teleportTo(part)
+	if not part then return false end
+	RootPart.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+	return true
+end
+
+local function getFoodRemote()
+	-- tries common remote names for throwing food
+	local names = { "ThrowFood", "Throw", "Feed", "GiveFood", "ThrowItem" }
+	for _, n in names do
+		local r = ReplicatedStorage:FindFirstChild(n)
+		if r and r:IsA("RemoteEvent") then return r end
+	end
+	return nil
+end
+
+local function getTrainRemote()
+	local names = { "Train", "StartTraining", "BeginTraining", "DoTraining" }
+	for _, n in names do
+		local r = ReplicatedStorage:FindFirstChild(n)
+		if r and r:IsA("RemoteEvent") then return r end
+	end
+	return nil
+end
+
+-- ================== AUTO THROW (PERFECT) ==================
+local throwing = false
+local function startThrow()
+	if throwing then return end
+	throwing = true
+	local remote = getFoodRemote()
+	while throwing do
+		-- teleport back to throw area each cycle (keeps you in range)
+		local area = findPart(CFG.ThrowAreaName)
+		if area then teleportTo(area) end
+
+		-- "perfect" throw: aim at target + fire remote
+		if remote then
+			remote:FireServer(CFG.ThrowDistance)
+		end
+		task.wait(CFG.ThrowInterval)
+	end
+	throwing = false
+end
+
+local function stopThrow() throwing = false end
+
+-- ================== AUTO TRAINING ==================
+local training = false
+local function startTraining()
+	if training then return end
+	training = true
+	local remote = getTrainRemote()
+	while training do
+		local area = findPart(CFG.TrainingName)
+		if area then teleportTo(area) end
+		if remote then remote:FireServer() end
+		task.wait(0.4)
+	end
+	training = false
+end
+
+local function stopTraining() training = false end
+
+-- ================== POPUP AUTO-CLICK (2x) ==================
+local popupRunning = false
+local function popupLoop()
+	popupRunning = true
+	while popupRunning do
+		-- scan for any button/label matching keywords (works after every popup)
+		local clicked = false
+		for _, gui in ipairs(Players.LocalPlayer.PlayerGui:GetDescendants()) do
+			if gui:IsA("TextButton") or gui:IsA("ImageButton") or gui:IsA("TextLabel") then
+				local t = (gui.Text or ""):lower()
+				for _, kw in ipairs(CFG.PopupKeywords) do
+					if t:lower():find(kw:lower(), 1, true) then
+						if gui:IsA("TextButton") or gui:IsA("ImageButton") then
+							gui:Activate()
+							clicked = true
+						end
+						break
+					end
+				end
+			end
+		end
+		task.wait(CFG.PopupClickSpeed) -- 2x speed
+	end
+	popupRunning = false
+end
+
+local function togglePopup()
+	if popupRunning then popupRunning = false
+	else popupLoop() end
+end
+
+-- ================== GUI ==================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TFAGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ---- Mini Button ----
+local mini = Instance.new("TextButton")
+mini.Size = UDim2.new(0, 55, 0, 55)
+mini.Position = UDim2.new(0, 20, 0.5, -27)
+mini.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+mini.Text = "🍖"
+mini.TextSize = 26
+mini.Font = Enum.Font.GothamBold
+mini.Parent = screenGui
+local miniCorner = Instance.new("UICorner", mini); miniCorner.CornerRadius = UDim.new(0, 12)
+local miniStroke = Instance.new("UIStroke", mini); miniStroke.Color = Color3.fromRGB(255, 160, 60); miniStroke.Thickness = 2
+
+-- ---- Main Window ----
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 280, 0, 300)
+main.Position = UDim2.new(0.5, -140, 0.5, -150)
+main.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+main.Visible = false
+main.Parent = screenGui
+local mainCorner = Instance.new("UICorner", main); mainCorner.CornerRadius = UDim.new(0, 14)
+local mainStroke = Instance.new("UIStroke", main); mainStroke.Color = Color3.fromRGB(255, 160, 60); mainStroke.Thickness = 2
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(255, 160, 60)
+title.Text = "🍖 Throw Food for Animals"
+title.TextColor3 = Color3.fromRGB(20, 20, 28)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.Parent = main
+
+local function makeBtn(label, y, color)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, -20, 0, 44)
+	b.Position = UDim2.new(0, 10, 0, y)
+	b.BackgroundColor3 = color
+	b.Text = label
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.TextSize = 16
+	b.Font = Enum.Font.GothamBold
+	b.Parent = main
+	local c = Instance.new("UICorner", b); c.CornerRadius = UDim.new(0, 8)
+	return b
+end
+
+local throwBtn  = makeBtn("Auto Perfect Throw", 55, Color3.fromRGB(60, 130, 90))
+local trainBtn  = makeBtn("Auto Training", 105, Color3.fromRGB(70, 100, 160))
+local popupBtn  = makeBtn("Popup Auto-Click (2x)", 155, Color3.fromRGB(150, 90, 150))
+local tpThrow   = makeBtn("Teleport → Throw Area", 205, Color3.fromRGB(90, 90, 100))
+local tpTrain   = makeBtn("Teleport → Training Area", 255, Color3.fromRGB(90, 90, 100))
+
+-- ---- Logic ----
+mini.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
+
+throwBtn.MouseButton1Click:Connect(function()
+	if throwing then stopThrow(); throwBtn.Text = "Auto Perfect Throw"
+	else startThrow(); throwBtn.Text = "Stop Throwing" end
+end)
+
+trainBtn.MouseButton1Click:Connect(function()
+	if training then stopTraining(); trainBtn.Text = "Auto Training"
+	else startTraining(); trainBtn.Text = "Stop Training" end
+end)
+
+popupBtn.MouseButton1Click:Connect(function()
+	togglePopup()
+	popupBtn.Text = popupRunning and "Stop Popup Clicker" or "Popup Auto-Click (2x)"
+end)
+
+tpThrow.MouseButton1Click:Connect(function()
+	local a = findPart(CFG.ThrowAreaName); if a then teleportTo(a) end
+end)
+
+tpTrain.MouseButton1Click:Connect(function()
+	local a = findPart(CFG.TrainingName); if a then teleportTo(a) end
+end)
+
+print("[TFAGUI] Loaded. Click the 🍖 button to open the menu.")
